@@ -12,6 +12,7 @@ endif
 
 SRC	:=	src/main.cpp \
 		src/Bot.cpp \
+		src/GameState.cpp \
 		src/Logger.cpp \
 		src/CommandRouter.cpp \
 		src/Response.cpp
