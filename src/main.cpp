@@ -1,6 +1,7 @@
 #include "Bot.hpp"
 #include "CommandRouter.hpp"
 #include "Logger.hpp"
+#include "Response.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -88,10 +89,6 @@ static void configureLoggerFromEnvAndArgs(int argc, char **argv) {
   }
 }
 
-static void reply(const std::string &message) {
-  Logger::instance().log("<< " + message);
-  std::cout << message << std::endl;
-}
 
 int main(int argc, char **argv) {
   std::cout.setf(std::ios::unitbuf);
@@ -102,8 +99,7 @@ int main(int argc, char **argv) {
   bool running = true;
 
   router.registerHandler("ABOUT", [](const std::string &) {
-    reply("name=\"pbrain-gomoku-ai\", version=\"0.1\", author=\"gomoku\", "
-          "country=\"FR\"");
+    Response::about("pbrain-gomoku-ai", "0.1", "gomoku", "FR");
   });
 
   router.registerHandler("END", [&](const std::string &) { running = false; });
@@ -126,53 +122,53 @@ int main(int argc, char **argv) {
     int size = 0;
     std::istringstream iss(args);
     if ((iss >> size) && bot.start(size))
-      reply("OK");
+      Response::ok();
     else
-      reply("ERROR");
+      Response::error();
   });
 
   router.registerHandler("RESTART", [&](const std::string &) {
     if (bot.restart())
-      reply("OK");
+      Response::ok();
     else
-      reply("ERROR");
+      Response::error();
   });
 
   router.registerHandler("TAKEBACK", [&](const std::string &args) {
     const auto move = parseMove(args);
     if (move && bot.takeback(*move))
-      reply("OK");
+      Response::ok();
     else
-      reply("ERROR");
+      Response::error();
   });
 
   router.registerHandler("BEGIN", [&](const std::string &) {
     const auto move = bot.chooseMove();
     if (!move || !bot.applyOurMove(*move)) {
-      reply("ERROR");
+      Response::error();
       return;
     }
-    reply(std::to_string(move->first) + "," + std::to_string(move->second));
+    Response::move(*move);
   });
 
   router.registerHandler("TURN", [&](const std::string &args) {
     const auto opponentMove = parseMove(args);
     if (!opponentMove || !bot.applyOpponentMove(*opponentMove)) {
-      reply("ERROR");
+      Response::error();
       return;
     }
 
     const auto move = bot.chooseMove();
     if (!move || !bot.applyOurMove(*move)) {
-      reply("ERROR");
+      Response::error();
       return;
     }
-    reply(std::to_string(move->first) + "," + std::to_string(move->second));
+    Response::move(*move);
   });
 
   router.registerHandler("BOARD", [&](const std::string &) {
     if (!bot.restart()) {
-      reply("ERROR");
+      Response::error();
       return;
     }
 
@@ -184,12 +180,12 @@ int main(int argc, char **argv) {
         break;
       const auto entry = parseBoardLine(line);
       if (!entry) {
-        reply("ERROR");
+        Response::error();
         return;
       }
       const auto [x, y, player] = *entry;
       if (!bot.applyBoardMove({x, y}, player)) {
-        reply("ERROR");
+        Response::error();
         return;
       }
     }
@@ -197,10 +193,10 @@ int main(int argc, char **argv) {
     {
       const auto move = bot.chooseMove();
       if (!move || !bot.applyOurMove(*move)) {
-        reply("ERROR");
+        Response::error();
         return;
       }
-      reply(std::to_string(move->first) + "," + std::to_string(move->second));
+      Response::move(*move);
     }
   });
 

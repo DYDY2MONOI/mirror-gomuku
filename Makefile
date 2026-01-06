@@ -14,7 +14,7 @@ SRC	:=	src/main.cpp \
 		src/Bot.cpp \
 		src/Logger.cpp \
 		src/CommandRouter.cpp \
-		src/GameState.cpp
+		src/Response.cpp
 OBJ	:=	$(SRC:.cpp=.o)
 
 all:	$(NAME)

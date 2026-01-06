@@ -1,9 +1,9 @@
 #include "CommandRouter.hpp"
 #include "Logger.hpp"
+#include "Response.hpp"
 
 #include <algorithm>
 #include <cctype>
-#include <iostream>
 
 static std::string trim(std::string value) {
   const auto notSpace = [](unsigned char c) { return !std::isspace(c); };
@@ -47,7 +47,6 @@ void CommandRouter::process(const std::string &line) {
   if (auto it = handlers_.find(command); it != handlers_.end()) {
     it->second(args);
   } else {
-    Logger::instance().log("<< UNKNOWN");
-    std::cout << "UNKNOWN" << std::endl;
+    Response::unknown();
   }
 }
