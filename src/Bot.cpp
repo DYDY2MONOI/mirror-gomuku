@@ -1,8 +1,10 @@
 #include "Bot.hpp"
 #include "GameState.hpp"
+#include "TimeManager.hpp"
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <string>
 #include <string_view>
 
@@ -10,6 +12,15 @@ Bot::Bot() = default;
 Bot::~Bot() = default;
 
 void Bot::setRule(int rule) { rule_ = rule; }
+
+void Bot::setTimeoutTurnMs(int ms) {
+  constexpr int maxMs = 5000;
+  if (ms <= 0) {
+    timeoutTurn_ = std::chrono::milliseconds(maxMs);
+    return;
+  }
+  timeoutTurn_ = std::chrono::milliseconds(std::min(ms, maxMs));
+}
 
 static bool isRenjuRule(int rule) { return rule == 2; }
 
@@ -249,6 +260,13 @@ std::optional<Bot::Move> Bot::chooseMove() const {
   if (!gameState_)
     return std::nullopt;
 
+  TimeManager timer;
+  auto budget = timeoutTurn_;
+  if (budget > std::chrono::milliseconds(50)) {
+    budget -= std::chrono::milliseconds(50);
+  }
+  timer.start(budget);
+
   auto moves = gameState_->getLegalMoves();
   if (moves.empty())
     return std::nullopt;
@@ -259,10 +277,18 @@ std::optional<Bot::Move> Bot::chooseMove() const {
                                    : GameState::Player::One;
 
   std::optional<Move> blockingMove;
+  std::optional<Move> fallbackMove;
 
   for (const auto &move : moves) {
+    if (timer.expired()) {
+      break;
+    }
     if (!isLegalMove(*gameState_, rule_, move.first, move.second, us)) {
       continue;
+    }
+
+    if (!fallbackMove) {
+      fallbackMove = move;
     }
 
     if (gameState_->willWin(move.first, move.second, us)) {
@@ -280,13 +306,7 @@ std::optional<Bot::Move> Bot::chooseMove() const {
     return blockingMove;
   }
 
-  for (const auto &move : moves) {
-    if (isLegalMove(*gameState_, rule_, move.first, move.second, us)) {
-      return move;
-    }
-  }
-
-  return std::nullopt;
+  return fallbackMove;
 }
 
 int Bot::boardSize() const { return gameState_ ? gameState_->size() : 0; }
