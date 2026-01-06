@@ -13,7 +13,8 @@ endif
 SRC	:=	src/main.cpp \
 		src/Bot.cpp \
 		src/Logger.cpp \
-		src/CommandRouter.cpp
+		src/CommandRouter.cpp \
+		src/Response.cpp
 OBJ	:=	$(SRC:.cpp=.o)
 
 all:	$(NAME)
