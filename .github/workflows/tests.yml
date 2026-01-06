@@ -1,0 +1,38 @@
+name: Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  build-and-test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ make
+
+      - name: Build project
+        run: make
+
+      - name: Verify binary exists
+        run: |
+          if [ ! -f "./pbrain-gomoku-ai" ]; then
+            echo "Error: Binary not found after build"
+            exit 1
+          fi
+          echo "Binary built successfully"
+
+      - name: Make test script executable
+        run: chmod +x tests/run_tests.sh
+
+      - name: Run tests
+        run: ./tests/run_tests.sh
