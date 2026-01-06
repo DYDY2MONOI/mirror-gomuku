@@ -17,6 +17,8 @@ public:
   bool start(int size);
   bool restart();
 
+  void setRule(int rule);
+
   bool applyOpponentMove(Move move);
   bool applyBoardMove(Move move, int player);
   std::optional<Move> chooseMove() const;
@@ -27,9 +29,7 @@ public:
   void setGameState(int size);
 
 private:
-  bool inBounds(Move move) const;
-  bool isEmpty(Move move) const;
+  int rule_ = 0;
 
   std::unique_ptr<GameState> gameState_;
-  int myColor_ = 0;
 };
