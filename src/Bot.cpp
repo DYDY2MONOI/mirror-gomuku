@@ -1,98 +1,124 @@
 #include "Bot.hpp"
+#include "GameState.hpp"
 
-bool Bot::start(int size)
-{
-    if (size < 5 || size > 100)
-        return false;
-    boardSize_ = size;
-    board_.assign(static_cast<size_t>(boardSize_ * boardSize_), 0);
-    return true;
+#include "GameState.hpp"
+
+Bot::Bot() = default;
+Bot::~Bot() = default;
+
+bool Bot::start(int size) {
+  if (size < 5 || size > 100)
+    return false;
+
+  gameState_ = std::make_unique<GameState>(size);
+  myColor_ = 0;
+  return true;
 }
 
-bool Bot::restart()
-{
-    if (boardSize_ <= 0)
-        return false;
-    std::fill(board_.begin(), board_.end(), 0);
-    return true;
+bool Bot::restart() {
+  if (!gameState_)
+    return false;
+  gameState_->clear();
+  myColor_ = 0;
+  return true;
 }
 
-bool Bot::inBounds(Move move) const
-{
-    return move.first >= 0 && move.second >= 0 && move.first < boardSize_ && move.second < boardSize_;
+bool Bot::inBounds(Move move) const {
+  return gameState_ && gameState_->isValid(move.first, move.second);
 }
 
-int &Bot::cell(Move move)
-{
-    return board_.at(static_cast<size_t>(move.second * boardSize_ + move.first));
+bool Bot::isEmpty(Move move) const {
+  return gameState_ && gameState_->isEmpty(move.first, move.second);
 }
 
-const int &Bot::cell(Move move) const
-{
-    return board_.at(static_cast<size_t>(move.second * boardSize_ + move.first));
-}
+bool Bot::applyOpponentMove(Move move) {
+  if (!gameState_)
+    return false;
 
-bool Bot::isEmpty(Move move) const
-{
-    return cell(move) == 0;
-}
-
-bool Bot::applyOpponentMove(Move move)
-{
-    if (!inBounds(move) || !isEmpty(move))
-        return false;
-    cell(move) = 2;
-    return true;
-}
-
-bool Bot::applyOurMove(Move move)
-{
-    if (!inBounds(move) || !isEmpty(move))
-        return false;
-    cell(move) = 1;
-    return true;
-}
-
-bool Bot::applyBoardMove(Move move, int player)
-{
-    if (!inBounds(move))
-        return false;
-    if (player != 0 && !isEmpty(move))
-        return false;
-    if (player < 0 || player > 2)
-        return false;
-    cell(move) = player;
-    return true;
-}
-
-bool Bot::takeback(Move move)
-{
-    if (!inBounds(move) || isEmpty(move))
-        return false;
-    cell(move) = 0;
-    return true;
-}
-
-std::optional<Bot::Move> Bot::chooseMove() const
-{
-    if (boardSize_ <= 0 || board_.empty())
-        return std::nullopt;
-
-    const Move center{boardSize_ / 2, boardSize_ / 2};
-    if (inBounds(center) && isEmpty(center))
-        return center;
-
-    for (int y = 0; y < boardSize_; ++y) {
-        for (int x = 0; x < boardSize_; ++x) {
-            const Move candidate{x, y};
-            if (isEmpty(candidate))
-                return candidate;
-        }
+  if (myColor_ == 0) {
+    if (gameState_->history().empty()) {
+      myColor_ = 2;
+    } else {
+      myColor_ = 1;
     }
-    return std::nullopt;
+  }
+
+  GameState::Player opponent =
+      (myColor_ == 1) ? GameState::Player::Two : GameState::Player::One;
+  return gameState_->play(move.first, move.second, opponent);
 }
 
-int Bot::size() const
-{
-    return boardSize_;
+bool Bot::applyOurMove(Move move) {
+  if (!gameState_)
+    return false;
+
+  if (myColor_ == 0) {
+    if (gameState_->history().empty()) {
+      myColor_ = 1;
+    } else {
+      myColor_ = 2;
+    }
+  }
+
+  GameState::Player us =
+      (myColor_ == 1) ? GameState::Player::One : GameState::Player::Two;
+  return gameState_->play(move.first, move.second, us);
 }
+
+bool Bot::applyBoardMove(Move move, int player) {
+  if (!gameState_)
+    return false;
+
+  GameState::Player p = GameState::Player::None;
+  if (player == 1) {
+    p = GameState::Player::One;
+    if (myColor_ == 0)
+      myColor_ = 1;
+    if (myColor_ == 2) {
+      p = GameState::Player::One;
+    }
+  } else if (player == 2) {
+    p = GameState::Player::Two;
+  } else {
+    return false;
+  }
+
+  if (myColor_ == 0)
+    myColor_ = 1;
+
+  gameState_->set(move.first, move.second, p);
+  return true;
+}
+
+bool Bot::takeback(Move move) {
+  if (!gameState_ || gameState_->history().empty())
+    return false;
+
+  if (gameState_->history().back() == move) {
+    gameState_->undo();
+    return true;
+  }
+  return false;
+}
+
+std::optional<Bot::Move> Bot::chooseMove() const {
+  if (!gameState_)
+    return std::nullopt;
+
+  int s = gameState_->size();
+  Move center{s / 2, s / 2};
+  if (gameState_->isEmpty(center.first, center.second))
+    return center;
+
+  for (int y = 0; y < s; ++y) {
+    for (int x = 0; x < s; ++x) {
+      if (gameState_->isEmpty(x, y))
+        return Move{x, y};
+    }
+  }
+  return std::nullopt;
+}
+
+int Bot::boardSize() const { return gameState_ ? gameState_->size() : 0; }
+
+void Bot::setGameState(int size) { (void)start(size); }
