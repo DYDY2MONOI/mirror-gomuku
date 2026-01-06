@@ -33,6 +33,8 @@ public:
   bool checkWinFor(Player player) const;
   Player getWinner() const;
 
+  bool willWin(int x, int y, Player player) const;
+
   std::vector<Move> getLegalMoves() const;
 
 private:

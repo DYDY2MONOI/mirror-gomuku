@@ -150,6 +150,23 @@ GameState::Player GameState::getWinner() const {
   return Player::None;
 }
 
+bool GameState::willWin(int x, int y, Player player) const {
+  if (!isValid(x, y) || !isEmpty(x, y))
+    return false;
+
+  const int directions[4][2] = {{1, 0}, {0, 1}, {1, 1}, {1, -1}};
+
+  for (const auto &dir : directions) {
+    int dx = dir[0];
+    int dy = dir[1];
+    int count = 1 + countDirection(x, y, dx, dy, player) +
+                countDirection(x, y, -dx, -dy, player);
+    if (count >= 5)
+      return true;
+  }
+  return false;
+}
+
 std::vector<GameState::Move> GameState::getLegalMoves() const {
   std::vector<Move> moves;
 

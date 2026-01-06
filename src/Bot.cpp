@@ -44,8 +44,8 @@ static int maxLineLengthAfterMove(const GameState &state, int x, int y,
   return best;
 }
 
-static bool hasFourThreatInDirection(const GameState &state, int x, int y, int dx,
-                                     int dy, GameState::Player player) {
+static bool hasFourThreatInDirection(const GameState &state, int x, int y,
+                                     int dx, int dy, GameState::Player player) {
   for (int startOffset = -4; startOffset <= 0; ++startOffset) {
     int playerCount = 0;
     int opponentCount = 0;
@@ -81,8 +81,8 @@ static bool hasFourThreatInDirection(const GameState &state, int x, int y, int d
   return false;
 }
 
-static bool hasFreeThreeInDirection(const GameState &state, int x, int y, int dx,
-                                    int dy, GameState::Player player) {
+static bool hasFreeThreeInDirection(const GameState &state, int x, int y,
+                                    int dx, int dy, GameState::Player player) {
   constexpr int radius = 5;
   std::string line;
   line.reserve(2 * radius + 1);
@@ -127,17 +127,17 @@ static bool hasFreeThreeInDirection(const GameState &state, int x, int y, int dx
 }
 
 static bool isForbiddenRenjuMove(const GameState &state, int x, int y,
-                                GameState::Player player) {
+                                 GameState::Player player) {
   if (player != GameState::Player::One) {
     return false;
   }
 
   const int maxLen = maxLineLengthAfterMove(state, x, y, player);
   if (maxLen > 5) {
-    return true; // overline
+    return true;
   }
   if (maxLen == 5) {
-    return false; // exact five is allowed
+    return false;
   }
 
   const std::array<std::pair<int, int>, 4> dirs = {
@@ -156,10 +156,10 @@ static bool isForbiddenRenjuMove(const GameState &state, int x, int y,
   }
 
   if (fourThreatDirs >= 2) {
-    return true; // double-four
+    return true;
   }
   if (freeThreeDirs >= 2) {
-    return true; // double-three
+    return true;
   }
   return false;
 }
@@ -227,7 +227,11 @@ bool Bot::applyBoardMove(Move move, int player) {
   if (existing != 0 && existing != player) {
     return false;
   }
-  return gameState_->set(move.first, move.second, player);
+
+  GameState::Player p =
+      (player == 1) ? GameState::Player::One : GameState::Player::Two;
+  gameState_->set(move.first, move.second, p);
+  return true;
 }
 
 bool Bot::takeback(Move move) {
@@ -245,13 +249,43 @@ std::optional<Bot::Move> Bot::chooseMove() const {
   if (!gameState_)
     return std::nullopt;
 
-  const auto toPlay = gameState_->currentPlayer();
   auto moves = gameState_->getLegalMoves();
-  for (const auto &m : moves) {
-    if (isLegalMove(*gameState_, rule_, m.first, m.second, toPlay)) {
-      return m;
+  if (moves.empty())
+    return std::nullopt;
+
+  GameState::Player us = gameState_->currentPlayer();
+  GameState::Player opponent = (us == GameState::Player::One)
+                                   ? GameState::Player::Two
+                                   : GameState::Player::One;
+
+  std::optional<Move> blockingMove;
+
+  for (const auto &move : moves) {
+    if (!isLegalMove(*gameState_, rule_, move.first, move.second, us)) {
+      continue;
+    }
+
+    if (gameState_->willWin(move.first, move.second, us)) {
+      return move;
+    }
+
+    if (gameState_->willWin(move.first, move.second, opponent)) {
+      if (!blockingMove) {
+        blockingMove = move;
+      }
     }
   }
+
+  if (blockingMove) {
+    return blockingMove;
+  }
+
+  for (const auto &move : moves) {
+    if (isLegalMove(*gameState_, rule_, move.first, move.second, us)) {
+      return move;
+    }
+  }
+
   return std::nullopt;
 }
 
