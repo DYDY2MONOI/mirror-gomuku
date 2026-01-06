@@ -2,11 +2,8 @@
 #include <algorithm>
 
 GameState::GameState(int size)
-    : size_(size), board_(size * size, Player::None) {
-  if (size <= 0) {
-    size_ = 20;
-    board_.resize(size_ * size_, Player::None);
-  }
+    : size_(20), board_(20 * 20, Player::None) {
+  (void)size;
 }
 
 int GameState::size() const { return size_; }
@@ -28,7 +25,7 @@ const std::vector<GameState::Move> &GameState::history() const {
   return history_;
 }
 
-GameState::Player GameState::get(int x, int y) const {
+GameState::Player GameState::playerAt(int x, int y) const {
   if (!isValid(x, y)) {
     return Player::None;
   }
@@ -40,7 +37,7 @@ bool GameState::isValid(int x, int y) const {
 }
 
 bool GameState::isEmpty(int x, int y) const {
-  return get(x, y) == Player::None;
+  return playerAt(x, y) == Player::None;
 }
 
 bool GameState::play(int x, int y, Player player) {
@@ -72,3 +69,21 @@ void GameState::set(int x, int y, Player player) {
     board_[y * size_ + x] = player;
   }
 }
+
+int GameState::get(int x, int y) const {
+  return static_cast<int>(playerAt(x, y));
+}
+
+bool GameState::set(int x, int y, int player) {
+  if (!isValid(x, y)) {
+    return false;
+  }
+  if (player < 0 || player > 2) {
+    return false;
+  }
+  board_[y * size_ + x] = static_cast<Player>(player);
+  return true;
+}
+
+bool GameState::is_empty(int x, int y) const { return isEmpty(x, y); }
+bool GameState::in_bounds(int x, int y) const { return isValid(x, y); }
