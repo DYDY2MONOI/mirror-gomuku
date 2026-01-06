@@ -3,11 +3,23 @@ NAME	:=	pbrain-gomoku-ai
 CXX	:=	g++
 CXXFLAGS	:=	-std=c++17 -Wall -Wextra -Werror -Iinclude
 
+DEBUG	?=	0
+ifeq ($(DEBUG),1)
+CXXFLAGS	+=	-g3 -O0 -DDEBUG
+else
+CXXFLAGS	+=	-O2
+endif
+
 SRC	:=	src/main.cpp \
-		src/Bot.cpp
+		src/Bot.cpp \
+		src/Logger.cpp \
+		src/CommandRouter.cpp
 OBJ	:=	$(SRC:.cpp=.o)
 
 all:	$(NAME)
+
+debug:	fclean
+	$(MAKE) DEBUG=1 all
 
 $(NAME):	$(OBJ)
 	$(CXX) $(OBJ) -o $(NAME)
@@ -20,4 +32,4 @@ fclean:	clean
 
 re:	fclean all
 
-.PHONY:	all clean fclean re
+.PHONY:	all debug clean fclean re
