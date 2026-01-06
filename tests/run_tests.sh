@@ -78,4 +78,28 @@ test_command "RESTART\nEND" "^ERROR$" "RESTART without START returns ERROR"
 # Test TAKEBACK
 test_command "START 20\nBEGIN\nTAKEBACK 10,10\nEND" "^OK$" "TAKEBACK returns OK"
 
+# Test forbidden move avoidance (Renju / overline)
+test_forbidden_avoid() {
+    local input="$1"
+    local forbidden_move="$2"
+    local description="$3"
+
+    last_line=$(echo -e "$input" | "$BINARY" 2>/dev/null | tail -n 1)
+
+    if [[ "$last_line" == "$forbidden_move" ]]; then
+        echo -e "${RED}✗ FAIL${NC}: $description"
+        echo "  Forbidden move played: $last_line"
+    elif echo "$last_line" | grep -qE "^[0-9]+,[0-9]+$"; then
+        echo -e "${GREEN}✓ PASS${NC}: $description"
+        echo "  Output: $last_line"
+    else
+        echo -e "${RED}✗ FAIL${NC}: $description"
+        echo "  Expected a move (X,Y) not equal to $forbidden_move"
+        echo "  Got: $last_line"
+    fi
+    echo ""
+}
+
+test_forbidden_avoid "START 20\nINFO rule 2\nBOARD\n0,0,1\n1,0,1\n2,0,1\n3,0,1\n4,0,1\n10,10,2\n11,10,2\n12,10,2\n13,10,2\n14,10,2\nDONE\nEND" "5,0" "Renju: bot avoids overline-forbidden move"
+
 echo -e "${YELLOW}=== Tests Complete ===${NC}"
