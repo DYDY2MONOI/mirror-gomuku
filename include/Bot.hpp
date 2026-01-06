@@ -4,6 +4,7 @@
 #include <optional>
 #include <utility>
 #include <vector>
+#include <chrono>
 
 class GameState;
 
@@ -18,6 +19,7 @@ public:
   bool restart();
 
   void setRule(int rule);
+  void setTimeoutTurnMs(int ms);
 
   bool applyOpponentMove(Move move);
   bool applyBoardMove(Move move, int player);
@@ -30,6 +32,7 @@ public:
 
 private:
   int rule_ = 0;
+  std::chrono::milliseconds timeoutTurn_ = std::chrono::seconds(5);
 
   std::unique_ptr<GameState> gameState_;
 };

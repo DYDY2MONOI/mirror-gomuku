@@ -102,4 +102,14 @@ test_forbidden_avoid() {
 
 test_forbidden_avoid "START 20\nINFO rule 2\nBOARD\n0,0,1\n1,0,1\n2,0,1\n3,0,1\n4,0,1\n10,10,2\n11,10,2\n12,10,2\n13,10,2\n14,10,2\nDONE\nEND" "5,0" "Renju: bot avoids overline-forbidden move"
 
+# Test 5 seconds max per move (best-effort via `timeout`)
+if command -v timeout >/dev/null 2>&1; then
+    if timeout 5 bash -c "echo -e 'START 20\nBEGIN\nEND' | \"$BINARY\" >/dev/null 2>/dev/null"; then
+        echo -e "${GREEN}✓ PASS${NC}: Move reply under 5 seconds"
+    else
+        echo -e "${RED}✗ FAIL${NC}: Move reply exceeded 5 seconds"
+    fi
+    echo ""
+fi
+
 echo -e "${YELLOW}=== Tests Complete ===${NC}"
