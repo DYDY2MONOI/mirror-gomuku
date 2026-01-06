@@ -132,6 +132,16 @@ int main(int argc, char **argv) {
       bot.setRule(rule);
       return;
     }
+    if (upperKey == "TIMEOUT_TURN") {
+      int ms = 0;
+      try {
+        ms = std::stoi(value);
+      } catch (...) {
+        return;
+      }
+      bot.setTimeoutTurnMs(ms);
+      return;
+    }
   });
 
   router.registerHandler("START", [&](const std::string &args) {
