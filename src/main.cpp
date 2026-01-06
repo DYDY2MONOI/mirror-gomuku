@@ -104,17 +104,33 @@ int main(int argc, char **argv) {
 
   router.registerHandler("END", [&](const std::string &) { running = false; });
 
-  router.registerHandler("INFO", [](const std::string &args) {
+  router.registerHandler("INFO", [&](const std::string &args) {
     std::istringstream iss(args);
     std::string key;
+    if (!(iss >> key))
+      return;
+
     std::string value;
-    if (iss >> key >> value) {
-      const std::string upperKey = toUpper(key);
-      if (upperKey == "DEBUG") {
-        Logger::instance().enableStderr(truthyEnv(value.c_str()));
-      } else if (upperKey == "LOG" || upperKey == "LOGFILE") {
-        (void)Logger::instance().setLogFile(value);
+    iss >> value;
+
+    const std::string upperKey = toUpper(key);
+    if (upperKey == "DEBUG") {
+      Logger::instance().enableStderr(truthyEnv(value.c_str()));
+      return;
+    }
+    if (upperKey == "LOG" || upperKey == "LOGFILE") {
+      (void)Logger::instance().setLogFile(value);
+      return;
+    }
+    if (upperKey == "RULE") {
+      int rule = 0;
+      try {
+        rule = std::stoi(value);
+      } catch (...) {
+        return;
       }
+      bot.setRule(rule);
+      return;
     }
   });
 
