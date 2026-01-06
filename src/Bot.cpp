@@ -7,7 +7,7 @@ Bot::Bot() = default;
 Bot::~Bot() = default;
 
 bool Bot::start(int size) {
-  if (size < 5 || size > 100)
+  if (size != 20)
     return false;
 
   gameState_ = std::make_unique<GameState>(size);
