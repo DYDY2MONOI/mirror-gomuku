@@ -3,7 +3,7 @@ name: mirror
 on: push
 
 env:
-  MIRROR_URL: "EpitechPGE3-2025/G-AIA-500-PAR-5-1-gomoku-34.git"
+  MIRROR_URL: "git@github.com:DYDY2MONOI/mirror-gomuku.git"
 
 jobs:
   push_to_mirror:
