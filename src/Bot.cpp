@@ -1,13 +1,11 @@
 #include "Bot.hpp"
 #include "GameState.hpp"
 
-#include "GameState.hpp"
-
 Bot::Bot() = default;
 Bot::~Bot() = default;
 
 bool Bot::start(int size) {
-  if (size != 20)
+  if (size < 5 || size > 100)
     return false;
 
   gameState_ = std::make_unique<GameState>(size);
@@ -105,18 +103,11 @@ std::optional<Bot::Move> Bot::chooseMove() const {
   if (!gameState_)
     return std::nullopt;
 
-  int s = gameState_->size();
-  Move center{s / 2, s / 2};
-  if (gameState_->isEmpty(center.first, center.second))
-    return center;
+  auto moves = gameState_->getLegalMoves();
+  if (moves.empty())
+    return std::nullopt;
 
-  for (int y = 0; y < s; ++y) {
-    for (int x = 0; x < s; ++x) {
-      if (gameState_->isEmpty(x, y))
-        return Move{x, y};
-    }
-  }
-  return std::nullopt;
+  return moves[0];
 }
 
 int Bot::boardSize() const { return gameState_ ? gameState_->size() : 0; }

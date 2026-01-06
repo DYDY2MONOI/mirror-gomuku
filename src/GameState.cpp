@@ -1,8 +1,8 @@
 #include "GameState.hpp"
 #include <algorithm>
+#include <cmath>
 
-GameState::GameState(int size)
-    : size_(20), board_(20 * 20, Player::None) {
+GameState::GameState(int size) : size_(20), board_(20 * 20, Player::None) {
   (void)size;
 }
 
@@ -88,13 +88,12 @@ bool GameState::set(int x, int y, int player) {
 bool GameState::is_empty(int x, int y) const { return isEmpty(x, y); }
 bool GameState::in_bounds(int x, int y) const { return isValid(x, y); }
 
-// --- C2 Win Detection Implementation ---
-
-int GameState::countDirection(int x, int y, int dx, int dy, Player player) const {
+int GameState::countDirection(int x, int y, int dx, int dy,
+                              Player player) const {
   int count = 0;
   int nx = x + dx;
   int ny = y + dy;
-  
+
   while (isValid(nx, ny) && playerAt(nx, ny) == player) {
     count++;
     nx += dx;
@@ -109,30 +108,20 @@ bool GameState::checkWin(int x, int y) const {
     return false;
   }
 
-  // Check all four directions: horizontal, vertical, and two diagonals
-  // For each direction, count consecutive pieces in both ways
-  
-  // Direction pairs: (dx, dy) and (-dx, -dy)
-  const int directions[4][2] = {
-    {1, 0},   // Horizontal (left-right)
-    {0, 1},   // Vertical (up-down)
-    {1, 1},   // Diagonal (top-left to bottom-right)
-    {1, -1}   // Anti-diagonal (bottom-left to top-right)
-  };
+  const int directions[4][2] = {{1, 0}, {0, 1}, {1, 1}, {1, -1}};
 
-  for (const auto& dir : directions) {
+  for (const auto &dir : directions) {
     int dx = dir[0];
     int dy = dir[1];
-    
-    // Count in positive direction and negative direction, plus the current piece
-    int count = 1 + countDirection(x, y, dx, dy, player) 
-                  + countDirection(x, y, -dx, -dy, player);
-    
+
+    int count = 1 + countDirection(x, y, dx, dy, player) +
+                countDirection(x, y, -dx, -dy, player);
+
     if (count >= 5) {
       return true;
     }
   }
-  
+
   return false;
 }
 
@@ -140,7 +129,7 @@ bool GameState::checkWinFor(Player player) const {
   if (player == Player::None) {
     return false;
   }
-  
+
   for (int y = 0; y < size_; ++y) {
     for (int x = 0; x < size_; ++x) {
       if (playerAt(x, y) == player && checkWin(x, y)) {
@@ -159,4 +148,59 @@ GameState::Player GameState::getWinner() const {
     return Player::Two;
   }
   return Player::None;
+}
+
+std::vector<GameState::Move> GameState::getLegalMoves() const {
+  std::vector<Move> moves;
+
+  bool hasStones = false;
+  for (const auto &p : board_) {
+    if (p != Player::None) {
+      hasStones = true;
+      break;
+    }
+  }
+
+  if (!hasStones) {
+    if (size_ > 0) {
+      moves.emplace_back(size_ / 2, size_ / 2);
+    }
+    return moves;
+  }
+
+  for (int y = 0; y < size_; ++y) {
+    for (int x = 0; x < size_; ++x) {
+      if (!isEmpty(x, y))
+        continue;
+
+      bool nearStone = false;
+      for (int dy = -2; dy <= 2 && !nearStone; ++dy) {
+        for (int dx = -2; dx <= 2; ++dx) {
+          if (dx == 0 && dy == 0)
+            continue;
+          int nx = x + dx;
+          int ny = y + dy;
+          if (isValid(nx, ny) && !isEmpty(nx, ny)) {
+            nearStone = true;
+            break;
+          }
+        }
+      }
+      if (nearStone) {
+        moves.emplace_back(x, y);
+      }
+    }
+  }
+
+  if (moves.empty()) {
+    for (int y = 0; y < size_; ++y) {
+      for (int x = 0; x < size_; ++x) {
+        if (isEmpty(x, y)) {
+          moves.emplace_back(x, y);
+        }
+      }
+    }
+  }
+
+  return moves;
 }
