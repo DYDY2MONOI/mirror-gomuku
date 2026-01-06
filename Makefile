@@ -34,4 +34,17 @@ fclean:	clean
 
 re:	fclean all
 
-.PHONY:	all debug clean fclean re
+# Test targets
+TEST_SRC	:=	tests/test_win_detection.cpp src/GameState.cpp
+TEST_NAME	:=	test_win_detection
+
+test:	$(TEST_NAME)
+	./$(TEST_NAME)
+
+$(TEST_NAME):	$(TEST_SRC)
+	$(CXX) $(CXXFLAGS) $(TEST_SRC) -o $(TEST_NAME)
+
+clean_test:
+	$(RM) $(TEST_NAME)
+
+.PHONY:	all debug clean fclean re test clean_test

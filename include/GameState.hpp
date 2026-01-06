@@ -37,7 +37,17 @@ public:
     void clear();
     void set(int x, int y, Player player);
 
+    // --- C2 Win Detection (five in a row) ---
+    // Check if the last move at (x, y) creates a winning line
+    bool checkWin(int x, int y) const;
+    // Check if a specific player has won anywhere on the board
+    bool checkWinFor(Player player) const;
+    // Check if there's a winner on the board (returns the winning player or None)
+    Player getWinner() const;
+
 private:
+    // Helper: count consecutive pieces in a direction (dx, dy)
+    int countDirection(int x, int y, int dx, int dy, Player player) const;
     int size_;
     std::vector<Player> board_;
     std::vector<Move> history_;

@@ -87,3 +87,76 @@ bool GameState::set(int x, int y, int player) {
 
 bool GameState::is_empty(int x, int y) const { return isEmpty(x, y); }
 bool GameState::in_bounds(int x, int y) const { return isValid(x, y); }
+
+// --- C2 Win Detection Implementation ---
+
+int GameState::countDirection(int x, int y, int dx, int dy, Player player) const {
+  int count = 0;
+  int nx = x + dx;
+  int ny = y + dy;
+  
+  while (isValid(nx, ny) && playerAt(nx, ny) == player) {
+    count++;
+    nx += dx;
+    ny += dy;
+  }
+  return count;
+}
+
+bool GameState::checkWin(int x, int y) const {
+  Player player = playerAt(x, y);
+  if (player == Player::None) {
+    return false;
+  }
+
+  // Check all four directions: horizontal, vertical, and two diagonals
+  // For each direction, count consecutive pieces in both ways
+  
+  // Direction pairs: (dx, dy) and (-dx, -dy)
+  const int directions[4][2] = {
+    {1, 0},   // Horizontal (left-right)
+    {0, 1},   // Vertical (up-down)
+    {1, 1},   // Diagonal (top-left to bottom-right)
+    {1, -1}   // Anti-diagonal (bottom-left to top-right)
+  };
+
+  for (const auto& dir : directions) {
+    int dx = dir[0];
+    int dy = dir[1];
+    
+    // Count in positive direction and negative direction, plus the current piece
+    int count = 1 + countDirection(x, y, dx, dy, player) 
+                  + countDirection(x, y, -dx, -dy, player);
+    
+    if (count >= 5) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+bool GameState::checkWinFor(Player player) const {
+  if (player == Player::None) {
+    return false;
+  }
+  
+  for (int y = 0; y < size_; ++y) {
+    for (int x = 0; x < size_; ++x) {
+      if (playerAt(x, y) == player && checkWin(x, y)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+GameState::Player GameState::getWinner() const {
+  if (checkWinFor(Player::One)) {
+    return Player::One;
+  }
+  if (checkWinFor(Player::Two)) {
+    return Player::Two;
+  }
+  return Player::None;
+}
