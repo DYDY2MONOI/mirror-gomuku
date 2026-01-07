@@ -5,8 +5,35 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <cstdint>
 #include <string>
 #include <string_view>
+
+namespace {
+constexpr std::uint64_t kTurnKeys[2] = {0x243f6a8885a308d3ULL,
+                                        0x13198a2e03707344ULL};
+constexpr std::uint64_t kIaKeys[2] = {0xa4093822299f31d0ULL,
+                                      0x082efa98ec4e6c89ULL};
+constexpr std::size_t kMaxTranspositionEntries = 200000;
+
+std::uint64_t playerKey(GameState::Player player,
+                        const std::uint64_t keys[2]) {
+  if (player == GameState::Player::One) {
+    return keys[0];
+  }
+  if (player == GameState::Player::Two) {
+    return keys[1];
+  }
+  return 0;
+}
+
+std::uint64_t makeTranspositionKey(const GameState &state,
+                                   GameState::Player current,
+                                   GameState::Player iaPlayer) {
+  return state.zobristHash() ^ playerKey(current, kTurnKeys) ^
+         playerKey(iaPlayer, kIaKeys);
+}
+} // namespace
 
 Bot::Bot() = default;
 Bot::~Bot() = default;
@@ -191,6 +218,8 @@ bool Bot::start(int size) {
     return false;
 
   gameState_ = std::make_unique<GameState>(size);
+  transpositionTable_.clear();
+  transpositionTable_.reserve(kMaxTranspositionEntries);
   return true;
 }
 
@@ -198,6 +227,7 @@ bool Bot::restart() {
   if (!gameState_)
     return false;
   gameState_->clear();
+  transpositionTable_.clear();
   return true;
 }
 
@@ -356,20 +386,33 @@ int Bot::minimax(int depth, int alpha, int beta, bool maximizingPlayer,
     return 0;
   }
 
+  GameState::Player current = gameState_->currentPlayer();
+  std::uint64_t key = makeTranspositionKey(*gameState_, current, iaPlayer);
+  auto cached = transpositionTable_.find(key);
+  if (cached != transpositionTable_.end() && cached->second.depth >= depth) {
+    return cached->second.score;
+  }
+  auto storeResult = [&](int score) {
+    if (transpositionTable_.size() > kMaxTranspositionEntries) {
+      transpositionTable_.clear();
+    }
+    transpositionTable_[key] = {depth, score};
+    return score;
+  };
+
   if (depth == 0) {
-    return evaluateBoard(*gameState_, iaPlayer);
+    return storeResult(evaluateBoard(*gameState_, iaPlayer));
   }
 
   auto moves = gameState_->getLegalMoves();
   if (moves.empty()) {
-    return evaluateBoard(*gameState_, iaPlayer);
+    return storeResult(evaluateBoard(*gameState_, iaPlayer));
   }
-
-  GameState::Player current = gameState_->currentPlayer();
 
   for (const auto &move : moves) {
     if (gameState_->willWin(move.first, move.second, current)) {
-      return maximizingPlayer ? 100000000 + depth : -100000000 - depth;
+      return storeResult(maximizingPlayer ? 100000000 + depth
+                                          : -100000000 - depth);
     }
   }
 
@@ -412,7 +455,7 @@ int Bot::minimax(int depth, int alpha, int beta, bool maximizingPlayer,
       if (beta <= alpha)
         break;
     }
-    return maxEval;
+    return storeResult(maxEval);
   } else {
     std::sort(scoredMoves.begin(), scoredMoves.end(),
               [](const ScoredMove &a, const ScoredMove &b) {
@@ -434,7 +477,7 @@ int Bot::minimax(int depth, int alpha, int beta, bool maximizingPlayer,
       if (beta <= alpha)
         break;
     }
-    return minEval;
+    return storeResult(minEval);
   }
 }
 
@@ -460,13 +503,24 @@ std::optional<Bot::Move> Bot::chooseMove() const {
                                    ? GameState::Player::Two
                                    : GameState::Player::One;
 
-  Move bestMove = moves[0];
-
+  std::vector<Move> legalMoves;
+  legalMoves.reserve(moves.size());
   for (const auto &move : moves) {
+    if (isLegalMove(*gameState_, rule_, move.first, move.second, us)) {
+      legalMoves.push_back(move);
+    }
+  }
+
+  if (legalMoves.empty())
+    return std::nullopt;
+
+  Move bestMove = legalMoves[0];
+
+  for (const auto &move : legalMoves) {
     if (gameState_->willWin(move.first, move.second, us))
       return move;
   }
-  for (const auto &move : moves) {
+  for (const auto &move : legalMoves) {
     if (gameState_->willWin(move.first, move.second, opponent))
       return move;
   }
@@ -480,13 +534,10 @@ std::optional<Bot::Move> Bot::chooseMove() const {
     Move currentBestMove = bestMove;
     bool completedDepth = true;
 
-    for (const auto &move : moves) {
+    for (const auto &move : legalMoves) {
       if (timer.expired()) {
         completedDepth = false;
         break;
-      }
-      if (!isLegalMove(*gameState_, rule_, move.first, move.second, us)) {
-        continue;
       }
 
       gameState_->play(move.first, move.second, us);

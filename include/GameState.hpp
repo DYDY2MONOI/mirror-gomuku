@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <optional>
 #include <utility>
 #include <vector>
@@ -36,10 +37,15 @@ public:
   bool willWin(int x, int y, Player player) const;
 
   std::vector<Move> getLegalMoves() const;
+  std::uint64_t zobristHash() const;
 
 private:
+  void initZobrist();
+  void updateHash(int x, int y, Player oldPlayer, Player newPlayer);
   int countDirection(int x, int y, int dx, int dy, Player player) const;
   int size_;
   std::vector<Player> board_;
   std::vector<Move> history_;
+  std::vector<std::uint64_t> zobristTable_;
+  std::uint64_t zobristHash_ = 0;
 };
