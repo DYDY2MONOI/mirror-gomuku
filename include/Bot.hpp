@@ -2,8 +2,10 @@
 
 #include "TimeManager.hpp"
 #include <chrono>
+#include <cstdint>
 #include <memory>
 #include <optional>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -32,10 +34,16 @@ public:
   void setGameState(int size);
 
 private:
+  struct TranspositionEntry {
+    int depth;
+    int score;
+  };
+
   int rule_ = 0;
   std::chrono::milliseconds timeoutTurn_ = std::chrono::seconds(5);
 
   std::unique_ptr<GameState> gameState_;
+  std::unordered_map<std::uint64_t, TranspositionEntry> transpositionTable_;
   int evaluateBoard(const GameState &state, GameState::Player player) const;
   int minimax(int depth, int alpha, int beta, bool maximizingPlayer,
               GameState::Player iaPlayer, TimeManager &timer);
