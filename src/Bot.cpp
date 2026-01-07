@@ -294,38 +294,38 @@ static int countPatterns(const GameState &state, GameState::Player player,
   }
 
   for (int y = 0; y <= size - len - 2; ++y) {
-  for (int x = 0; x <= size - len - 2; ++x) {
-    if (!state.isEmpty(x, y) || !state.isEmpty(x + len + 1, y + len + 1))
-      continue;
-    bool match = true;
-    for (int k = 1; k <= len; ++k) {
-      if (state.playerAt(x + k, y + k) != player) {
-        match = false;
-        break;
+    for (int x = 0; x <= size - len - 2; ++x) {
+      if (!state.isEmpty(x, y) || !state.isEmpty(x + len + 1, y + len + 1))
+        continue;
+      bool match = true;
+      for (int k = 1; k <= len; ++k) {
+        if (state.playerAt(x + k, y + k) != player) {
+          match = false;
+          break;
+        }
       }
+      if (match)
+        count++;
     }
-    if (match)
-      count++;
   }
-}
 
-for (int y = len + 1; y < size; ++y) {
-  for (int x = 0; x <= size - len - 2; ++x) {
-    if (!state.isEmpty(x, y) || !state.isEmpty(x + len + 1, y - len - 1))
-      continue;
-    bool match = true;
-    for (int k = 1; k <= len; ++k) {
-      if (state.playerAt(x + k, y - k) != player) {
-        match = false;
-        break;
+  for (int y = len + 1; y < size; ++y) {
+    for (int x = 0; x <= size - len - 2; ++x) {
+      if (!state.isEmpty(x, y) || !state.isEmpty(x + len + 1, y - len - 1))
+        continue;
+      bool match = true;
+      for (int k = 1; k <= len; ++k) {
+        if (state.playerAt(x + k, y - k) != player) {
+          match = false;
+          break;
+        }
       }
+      if (match)
+        count++;
     }
-    if (match)
-      count++;
   }
-}
 
-return count;
+  return count;
 }
 
 int Bot::evaluateBoard(const GameState &state, GameState::Player player) const {
@@ -350,6 +350,70 @@ int Bot::evaluateBoard(const GameState &state, GameState::Player player) const {
   return myScore - oppScore;
 }
 
+int Bot::minimax(int depth, int alpha, int beta, bool maximizingPlayer,
+                 GameState::Player iaPlayer, TimeManager &timer) {
+  if (timer.expired()) {
+    return 0;
+  }
+
+  if (depth == 0) {
+    return evaluateBoard(*gameState_, iaPlayer);
+  }
+
+  auto moves = gameState_->getLegalMoves();
+  if (moves.empty()) {
+    return evaluateBoard(*gameState_, iaPlayer);
+  }
+
+  GameState::Player current = gameState_->currentPlayer();
+
+  for (const auto &move : moves) {
+    if (gameState_->willWin(move.first, move.second, current)) {
+      return maximizingPlayer ? 100000000 + depth : -100000000 - depth;
+    }
+  }
+
+  if (maximizingPlayer) {
+    int maxEval = -2000000000;
+    for (const auto &move : moves) {
+      if (!isLegalMove(*gameState_, rule_, move.first, move.second, current))
+        continue;
+
+      gameState_->play(move.first, move.second, current);
+      int eval = minimax(depth - 1, alpha, beta, false, iaPlayer, timer);
+      gameState_->undo();
+
+      if (timer.expired())
+        return 0;
+
+      maxEval = std::max(maxEval, eval);
+      alpha = std::max(alpha, eval);
+      if (beta <= alpha)
+        break;
+    }
+    return maxEval;
+  } else {
+    int minEval = 2000000000;
+    for (const auto &move : moves) {
+      if (!isLegalMove(*gameState_, rule_, move.first, move.second, current))
+        continue;
+
+      gameState_->play(move.first, move.second, current);
+      int eval = minimax(depth - 1, alpha, beta, true, iaPlayer, timer);
+      gameState_->undo();
+
+      if (timer.expired())
+        return 0;
+
+      minEval = std::min(minEval, eval);
+      beta = std::min(beta, eval);
+      if (beta <= alpha)
+        break;
+    }
+    return minEval;
+  }
+}
+
 std::optional<Bot::Move> Bot::chooseMove() const {
   if (!gameState_)
     return std::nullopt;
@@ -361,6 +425,8 @@ std::optional<Bot::Move> Bot::chooseMove() const {
   }
   timer.start(budget);
 
+  Bot *mutableBot = const_cast<Bot *>(this);
+
   auto moves = gameState_->getLegalMoves();
   if (moves.empty())
     return std::nullopt;
@@ -370,41 +436,50 @@ std::optional<Bot::Move> Bot::chooseMove() const {
                                    ? GameState::Player::Two
                                    : GameState::Player::One;
 
-  std::optional<Move> blockingMove;
-  std::optional<Move> winningMove;
-
   Move bestMove = moves[0];
-  int bestScore = -2000000000;
 
   for (const auto &move : moves) {
-    if (timer.expired()) {
-      break;
-    }
-    if (!isLegalMove(*gameState_, rule_, move.first, move.second, us)) {
-      continue;
-    }
-
-    if (gameState_->willWin(move.first, move.second, us)) {
+    if (gameState_->willWin(move.first, move.second, us))
       return move;
-    }
-
-    if (gameState_->willWin(move.first, move.second, opponent)) {
-      if (!blockingMove)
-        blockingMove = move;
-    }
-
-    gameState_->play(move.first, move.second, us);
-    int score = evaluateBoard(*gameState_, us);
-    gameState_->undo();
-
-    if (score > bestScore) {
-      bestScore = score;
-      bestMove = move;
-    }
+  }
+  for (const auto &move : moves) {
+    if (gameState_->willWin(move.first, move.second, opponent))
+      return move;
   }
 
-  if (blockingMove)
-    return blockingMove;
+  int maxDepth = 20;
+  for (int depth = 1; depth <= maxDepth; ++depth) {
+    if (timer.expired())
+      break;
+
+    int bestVal = -2000000000;
+    Move currentBestMove = bestMove;
+    bool completedDepth = true;
+
+    for (const auto &move : moves) {
+      if (timer.expired()) {
+        completedDepth = false;
+        break;
+      }
+      if (!isLegalMove(*gameState_, rule_, move.first, move.second, us)) {
+        continue;
+      }
+
+      gameState_->play(move.first, move.second, us);
+      int val = mutableBot->minimax(depth - 1, -2000000000, 2000000000, false,
+                                    us, timer);
+      gameState_->undo();
+
+      if (val > bestVal) {
+        bestVal = val;
+        currentBestMove = move;
+      }
+    }
+
+    if (completedDepth && !timer.expired()) {
+      bestMove = currentBestMove;
+    }
+  }
 
   return bestMove;
 }

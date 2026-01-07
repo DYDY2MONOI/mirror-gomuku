@@ -1,5 +1,6 @@
 #pragma once
 
+#include "TimeManager.hpp"
 #include <chrono>
 #include <memory>
 #include <optional>
@@ -36,4 +37,6 @@ private:
 
   std::unique_ptr<GameState> gameState_;
   int evaluateBoard(const GameState &state, GameState::Player player) const;
+  int minimax(int depth, int alpha, int beta, bool maximizingPlayer,
+              GameState::Player iaPlayer, TimeManager &timer);
 };
