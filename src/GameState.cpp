@@ -1,9 +1,15 @@
 #include "GameState.hpp"
 #include <algorithm>
 #include <cmath>
+#include <random>
+
+namespace {
+constexpr std::uint64_t kZobristSeed = 0x9e3779b97f4a7c15ULL;
+} // namespace
 
 GameState::GameState(int size) : size_(20), board_(20 * 20, Player::None) {
   (void)size;
+  initZobrist();
 }
 
 int GameState::size() const { return size_; }
@@ -40,11 +46,42 @@ bool GameState::isEmpty(int x, int y) const {
   return playerAt(x, y) == Player::None;
 }
 
+std::uint64_t GameState::zobristHash() const { return zobristHash_; }
+
+void GameState::initZobrist() {
+  zobristTable_.assign(static_cast<std::size_t>(size_) * size_ * 2, 0);
+  std::mt19937_64 rng(kZobristSeed);
+  std::uniform_int_distribution<std::uint64_t> dist;
+  for (auto &entry : zobristTable_) {
+    entry = dist(rng);
+  }
+  zobristHash_ = 0;
+}
+
+void GameState::updateHash(int x, int y, Player oldPlayer, Player newPlayer) {
+  if (!isValid(x, y) || oldPlayer == newPlayer) {
+    return;
+  }
+  const std::size_t base =
+      static_cast<std::size_t>(y * size_ + x) * 2;
+  if (oldPlayer == Player::One) {
+    zobristHash_ ^= zobristTable_[base];
+  } else if (oldPlayer == Player::Two) {
+    zobristHash_ ^= zobristTable_[base + 1];
+  }
+  if (newPlayer == Player::One) {
+    zobristHash_ ^= zobristTable_[base];
+  } else if (newPlayer == Player::Two) {
+    zobristHash_ ^= zobristTable_[base + 1];
+  }
+}
+
 bool GameState::play(int x, int y, Player player) {
   if (!isValid(x, y) || !isEmpty(x, y)) {
     return false;
   }
 
+  updateHash(x, y, Player::None, player);
   board_[y * size_ + x] = player;
   history_.emplace_back(x, y);
   return true;
@@ -55,18 +92,23 @@ void GameState::undo() {
     return;
   }
   Move last = history_.back();
-  board_[last.second * size_ + last.first] = Player::None;
+  const int index = last.second * size_ + last.first;
+  updateHash(last.first, last.second, board_[index], Player::None);
+  board_[index] = Player::None;
   history_.pop_back();
 }
 
 void GameState::clear() {
   std::fill(board_.begin(), board_.end(), Player::None);
   history_.clear();
+  zobristHash_ = 0;
 }
 
 void GameState::set(int x, int y, Player player) {
   if (isValid(x, y)) {
-    board_[y * size_ + x] = player;
+    const int index = y * size_ + x;
+    updateHash(x, y, board_[index], player);
+    board_[index] = player;
   }
 }
 
@@ -81,7 +123,10 @@ bool GameState::set(int x, int y, int player) {
   if (player < 0 || player > 2) {
     return false;
   }
-  board_[y * size_ + x] = static_cast<Player>(player);
+  const int index = y * size_ + x;
+  auto next = static_cast<Player>(player);
+  updateHash(x, y, board_[index], next);
+  board_[index] = next;
   return true;
 }
 
