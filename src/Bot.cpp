@@ -256,6 +256,100 @@ bool Bot::takeback(Move move) {
   return false;
 }
 
+static int countPatterns(const GameState &state, GameState::Player player,
+                         int len) {
+  int count = 0;
+  int size = state.size();
+
+  for (int y = 0; y < size; ++y) {
+    for (int x = 0; x <= size - len - 2; ++x) {
+      if (!state.isEmpty(x, y) || !state.isEmpty(x + len + 1, y))
+        continue;
+      bool match = true;
+      for (int k = 1; k <= len; ++k) {
+        if (state.playerAt(x + k, y) != player) {
+          match = false;
+          break;
+        }
+      }
+      if (match)
+        count++;
+    }
+  }
+
+  for (int x = 0; x < size; ++x) {
+    for (int y = 0; y <= size - len - 2; ++y) {
+      if (!state.isEmpty(x, y) || !state.isEmpty(x, y + len + 1))
+        continue;
+      bool match = true;
+      for (int k = 1; k <= len; ++k) {
+        if (state.playerAt(x, y + k) != player) {
+          match = false;
+          break;
+        }
+      }
+      if (match)
+        count++;
+    }
+  }
+
+  for (int y = 0; y <= size - len - 2; ++y) {
+  for (int x = 0; x <= size - len - 2; ++x) {
+    if (!state.isEmpty(x, y) || !state.isEmpty(x + len + 1, y + len + 1))
+      continue;
+    bool match = true;
+    for (int k = 1; k <= len; ++k) {
+      if (state.playerAt(x + k, y + k) != player) {
+        match = false;
+        break;
+      }
+    }
+    if (match)
+      count++;
+  }
+}
+
+for (int y = len + 1; y < size; ++y) {
+  for (int x = 0; x <= size - len - 2; ++x) {
+    if (!state.isEmpty(x, y) || !state.isEmpty(x + len + 1, y - len - 1))
+      continue;
+    bool match = true;
+    for (int k = 1; k <= len; ++k) {
+      if (state.playerAt(x + k, y - k) != player) {
+        match = false;
+        break;
+      }
+    }
+    if (match)
+      count++;
+  }
+}
+
+return count;
+}
+
+int Bot::evaluateBoard(const GameState &state, GameState::Player player) const {
+  GameState::Player opp = (player == GameState::Player::One)
+                              ? GameState::Player::Two
+                              : GameState::Player::One;
+
+  int myScore = 0;
+  int oppScore = 0;
+
+  int myOpen4 = countPatterns(state, player, 4);
+  int myOpen3 = countPatterns(state, player, 3);
+  int myOpen2 = countPatterns(state, player, 2);
+
+  int oppOpen4 = countPatterns(state, opp, 4);
+  int oppOpen3 = countPatterns(state, opp, 3);
+  int oppOpen2 = countPatterns(state, opp, 2);
+
+  myScore = myOpen4 * 10000 + myOpen3 * 1000 + myOpen2 * 100;
+  oppScore = oppOpen4 * 10000 + oppOpen3 * 1000 + oppOpen2 * 100;
+
+  return myScore - oppScore;
+}
+
 std::optional<Bot::Move> Bot::chooseMove() const {
   if (!gameState_)
     return std::nullopt;
@@ -277,7 +371,10 @@ std::optional<Bot::Move> Bot::chooseMove() const {
                                    : GameState::Player::One;
 
   std::optional<Move> blockingMove;
-  std::optional<Move> fallbackMove;
+  std::optional<Move> winningMove;
+
+  Move bestMove = moves[0];
+  int bestScore = -2000000000;
 
   for (const auto &move : moves) {
     if (timer.expired()) {
@@ -287,26 +384,29 @@ std::optional<Bot::Move> Bot::chooseMove() const {
       continue;
     }
 
-    if (!fallbackMove) {
-      fallbackMove = move;
-    }
-
     if (gameState_->willWin(move.first, move.second, us)) {
       return move;
     }
 
     if (gameState_->willWin(move.first, move.second, opponent)) {
-      if (!blockingMove) {
+      if (!blockingMove)
         blockingMove = move;
-      }
+    }
+
+    gameState_->play(move.first, move.second, us);
+    int score = evaluateBoard(*gameState_, us);
+    gameState_->undo();
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestMove = move;
     }
   }
 
-  if (blockingMove) {
+  if (blockingMove)
     return blockingMove;
-  }
 
-  return fallbackMove;
+  return bestMove;
 }
 
 int Bot::boardSize() const { return gameState_ ? gameState_->size() : 0; }

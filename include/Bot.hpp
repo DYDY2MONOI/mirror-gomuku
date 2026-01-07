@@ -1,12 +1,12 @@
 #pragma once
 
+#include <chrono>
 #include <memory>
 #include <optional>
 #include <utility>
 #include <vector>
-#include <chrono>
 
-class GameState;
+#include "GameState.hpp"
 
 class Bot {
 public:
@@ -35,4 +35,5 @@ private:
   std::chrono::milliseconds timeoutTurn_ = std::chrono::seconds(5);
 
   std::unique_ptr<GameState> gameState_;
+  int evaluateBoard(const GameState &state, GameState::Player player) const;
 };
