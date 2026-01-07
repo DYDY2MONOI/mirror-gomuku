@@ -373,12 +373,33 @@ int Bot::minimax(int depth, int alpha, int beta, bool maximizingPlayer,
     }
   }
 
-  if (maximizingPlayer) {
-    int maxEval = -2000000000;
-    for (const auto &move : moves) {
-      if (!isLegalMove(*gameState_, rule_, move.first, move.second, current))
-        continue;
+  struct ScoredMove {
+    Move move;
+    int score;
+  };
 
+  std::vector<ScoredMove> scoredMoves;
+  scoredMoves.reserve(moves.size());
+
+  for (const auto &move : moves) {
+    if (!isLegalMove(*gameState_, rule_, move.first, move.second, current))
+      continue;
+
+    gameState_->play(move.first, move.second, current);
+    int score = evaluateBoard(*gameState_, iaPlayer);
+    gameState_->undo();
+    scoredMoves.push_back({move, score});
+  }
+
+  if (maximizingPlayer) {
+    std::sort(scoredMoves.begin(), scoredMoves.end(),
+              [](const ScoredMove &a, const ScoredMove &b) {
+                return a.score > b.score;
+              });
+
+    int maxEval = -2000000000;
+    for (const auto &sm : scoredMoves) {
+      const auto &move = sm.move;
       gameState_->play(move.first, move.second, current);
       int eval = minimax(depth - 1, alpha, beta, false, iaPlayer, timer);
       gameState_->undo();
@@ -393,11 +414,14 @@ int Bot::minimax(int depth, int alpha, int beta, bool maximizingPlayer,
     }
     return maxEval;
   } else {
-    int minEval = 2000000000;
-    for (const auto &move : moves) {
-      if (!isLegalMove(*gameState_, rule_, move.first, move.second, current))
-        continue;
+    std::sort(scoredMoves.begin(), scoredMoves.end(),
+              [](const ScoredMove &a, const ScoredMove &b) {
+                return a.score < b.score;
+              });
 
+    int minEval = 2000000000;
+    for (const auto &sm : scoredMoves) {
+      const auto &move = sm.move;
       gameState_->play(move.first, move.second, current);
       int eval = minimax(depth - 1, alpha, beta, true, iaPlayer, timer);
       gameState_->undo();
