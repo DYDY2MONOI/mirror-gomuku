@@ -1,0 +1,13 @@
+# Must win: Player Two to move, vertical open four
+SIZE 20
+RULE 0
+EXPECT 10,2 10,7
+10,3,2
+10,4,2
+10,5,2
+10,6,2
+0,0,1
+2,0,1
+4,0,1
+6,0,1
+8,0,1

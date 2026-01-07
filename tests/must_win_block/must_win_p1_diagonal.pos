@@ -1,0 +1,12 @@
+# Must win: Player One to move, diagonal open four
+SIZE 20
+RULE 0
+EXPECT 9,9 14,14
+10,10,1
+11,11,1
+12,12,1
+13,13,1
+0,0,2
+2,0,2
+0,2,2
+2,2,2
